@@ -1,0 +1,11 @@
+# Ignore all files by default in Downloads folder
+*
+
+# Whitelist SiteCheck project files and folders
+!src/
+!src/**
+!index.html
+!test-runner.html
+!serve.ps1
+!README.md
+!.gitignore

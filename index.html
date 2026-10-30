@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SiteCheck — Website security and privacy analysis tool. Plain English findings and actionable code fixes." />
+  <meta name="theme-color" content="#090d12" />
+  <title>SiteCheck — Website Security & Privacy Analysis</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono (with system fallback) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Core Application Stylesheet -->
+  <link rel="stylesheet" href="./src/styles/main.css" />
+</head>
+<body>
+
+  <!-- Root mount point for SiteCheck Application Shell -->
+  <div id="app">
+    <noscript>
+      <div style="padding: 2rem; color: #f8fafc; background: #090d12; font-family: sans-serif;">
+        <h2>JavaScript Required</h2>
+        <p>Please enable JavaScript to use the SiteCheck Security & Privacy Analysis tool.</p>
+      </div>
+    </noscript>
+  </div>
+
+  <!-- Components & Data -->
+  <script src="./src/components/ErrorNotice.js"></script>
+  <script src="./src/components/UrlInputForm.js"></script>
+  <script src="./src/components/mockScanData.js"></script>
+  <script src="./src/components/ResultsDashboard.js"></script>
+  <script src="./src/components/apiClient.js"></script>
+
+  <!-- Main Application Shell -->
+  <script src="./src/App.js"></script>
+
+</body>
+</html>

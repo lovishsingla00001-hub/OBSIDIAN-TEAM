@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SiteCheck — Verification Test Suite (Steps 1, 2, 3 &amp; 4)</title>
+  <style>
+    body { font-family: monospace; background: #090d12; color: #f8fafc; padding: 2rem; }
+    .pass { color: #10b981; }
+    .fail { color: #f43f5e; font-weight: bold; }
+    .suite-header { margin-top: 1.5rem; margin-bottom: 0.5rem; color: #38bdf8; font-size: 1.1rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.25rem; }
+    .summary { margin-top: 1.5rem; padding: 1rem; border-top: 2px solid #334155; }
+    #test-form-container, #test-dash-container, #test-err-container { display: none; }
+  </style>
+</head>
+<body>
+  <h1>SiteCheck — Verification Test Suite (Steps 1, 2, 3 &amp; 4)</h1>
+  <div id="test-form-container"></div>
+  <div id="test-dash-container"></div>
+  <div id="test-err-container"></div>
+  <div id="results"></div>
+
+  <script src="./src/components/ErrorNotice.js"></script>
+  <script src="./src/components/UrlInputForm.js"></script>
+  <script src="./src/components/mockScanData.js"></script>
+  <script src="./src/components/ResultsDashboard.js"></script>
+  <script src="./src/components/apiClient.js"></script>
+  <script>
+    const results = document.getElementById('results');
+    let passed = 0;
+    let failed = 0;
+
+    function addHeader(title) {
+      const h = document.createElement('div');
+      h.className = 'suite-header';
+      h.textContent = title;
+      results.appendChild(h);
+    }
+
+    function assert(condition, testName, details = '') {
+      const p = document.createElement('div');
+      if (condition) {
+        p.innerHTML = `<span class="pass">✔ PASS:</span> ${testName}`;
+        passed++;
+      } else {
+        p.innerHTML = `<span class="fail">✖ FAIL:</span> ${testName} ${details ? '(' + details + ')' : ''}`;
+        failed++;
+      }
+      results.appendChild(p);
+    }
+
+    // =============================================================
+    // SUITE 1: URL Input Validation & Hostname Extraction (Step 1)
+    // =============================================================
+    addHeader('1. URL Input Validation & Hostname Extraction');
+    const formContainer = document.getElementById('test-form-container');
+    let submittedData = null;
+    let retriedData = null;
+
+    const form = new window.SiteCheck.UrlInputForm(formContainer, {
+      onScanSubmit: (d) => { submittedData = d; },
+      onRetry: (err, d) => { retriedData = d; }
+    });
+
+    assert(form.validateUrl('https://example.com').isValid === true, 'Accepts standard https URL');
+    assert(form.validateUrl('http://example.com').isValid === true, 'Accepts standard http URL');
+    assert(form.validateUrl('example.com').isValid === true, 'Accepts domain without scheme (prepends https://)');
+    assert(form.validateUrl('ftp://example.com').isValid === false, 'Rejects ftp:// scheme');
+    assert(form.validateUrl('javascript:alert(1)').isValid === false, 'Rejects javascript: scheme');
+    assert(form.validateUrl('file:///etc/passwd').isValid === false, 'Rejects file:// scheme');
+    assert(form.validateUrl('data:text/html,test').isValid === false, 'Rejects data: scheme');
+    assert(form.validateUrl('').isValid === false, 'Rejects empty URL');
+    assert(form.validateUrl('https://WWW.EXAMPLE.COM/path/to/page?q=1').hostname === 'www.example.com', 'Normalizes hostname to lowercase and strips paths');
+    assert(form.validateUrl('http://sub.domain.co.uk:8080').hostname === 'sub.domain.co.uk', 'Strips port from normalized hostname');
+
+    // =============================================================
+    // SUITE 2: Validation Feedback & Preconditions (Step 2 & 3)
+    // =============================================================
+    addHeader('2. Validation Feedback & Preconditions');
+    assert(form.validateConfirmation('example.com', 'example.com').isValid === true, 'Matches exact lowercase hostname');
+    assert(form.validateConfirmation('EXAMPLE.COM', 'example.com').isValid === true, 'Matches case-insensitive hostname');
+    assert(form.validateConfirmation('  example.com  ', 'example.com').isValid === true, 'Trims whitespace before matching');
+    assert(form.validateConfirmation('other.com', 'example.com').isValid === false, 'Rejects mismatched hostname');
+    assert(form.validateConfirmation('', 'example.com').isValid === false, 'Rejects empty confirmation');
+
+    form.handleUrlChange('ftp://invalid-site.com');
+    assert(form.state.urlError.includes('Unsupported scheme "ftp:"'), 'Invalid scheme produces clear scheme rejection message');
+    assert(form.urlInput.classList.contains('has-error'), 'Invalid URL applies .has-error class');
+    assert(form.urlInput.getAttribute('aria-invalid') === 'true', 'Invalid URL sets aria-invalid="true"');
+
+    form.handleUrlChange('https://github.com');
+    form.handleConfirmationChange('wrongdomain.com');
+    assert(form.state.confirmationError.includes('Domain mismatch'), 'Incorrect confirmation produces domain mismatch error');
+    assert(form.confInput.classList.contains('has-error'), 'Incorrect confirmation applies .has-error class');
+    assert(form.confInput.getAttribute('aria-invalid') === 'true', 'Incorrect confirmation sets aria-invalid="true"');
+    assert(form.submitBtn.disabled === true, 'Scan button remains disabled on mismatched confirmation');
+
+    form.handleConfirmationChange('GITHUB.COM');
+    assert(form.state.isConfirmationValid === true, 'Valid case-normalized confirmation marks state valid');
+    assert(form.submitBtn.disabled === false, 'Scan button is ENABLED when both URL and confirmation match');
+
+    // =============================================================
+    // SUITE 3: Loading States & Duplicate Submission Prevention
+    // =============================================================
+    addHeader('3. Loading States & Duplicate Submission Prevention');
+    form.setLoading(true, 'Preparing security check…');
+    assert(form.state.isSubmitting === true, 'isSubmitting state set to true');
+    assert(form.submitBtn.classList.contains('is-loading'), 'Submit button has .is-loading class');
+    assert(form.btnScanText.textContent === 'Preparing security check…', 'Submit button displays loading text');
+    assert(form.btnIconSpinner.style.display !== 'none', 'Loading spinner SVG is visible');
+    assert(form.container.querySelector('#sitecheck-form').getAttribute('aria-busy') === 'true', 'Form sets aria-busy="true"');
+
+    assert(form.urlInput.disabled === true, 'URL input disabled during submission');
+    assert(form.confInput.disabled === true, 'Confirmation input disabled during submission');
+    assert(form.submitBtn.disabled === true, 'Submit button disabled during submission');
+    
+    submittedData = null;
+    form.handleSubmit();
+    assert(submittedData === null, 'Duplicate handleSubmit() call blocked while request in progress');
+
+    form.handleUrlChange('https://sneaky-change.com');
+    assert(form.state.rawUrl === 'https://github.com', 'Input changes blocked while request in progress');
+
+    form.setLoading(false);
+    assert(form.state.isSubmitting === false, 'isSubmitting restored to false');
+    assert(!form.submitBtn.classList.contains('is-loading'), 'is-loading class removed');
+    assert(form.btnScanText.textContent === 'Run Security Scan', 'Button label restored to "Run Security Scan"');
+    assert(form.btnIconSpinner.style.display === 'none', 'Loading spinner hidden');
+    assert(form.urlInput.disabled === false, 'URL input re-enabled after loading finishes');
+    assert(form.confInput.disabled === false, 'Confirmation input re-enabled after loading finishes');
+    assert(form.container.querySelector('#sitecheck-form').getAttribute('aria-busy') === 'false', 'Form sets aria-busy="false"');
+
+    // =============================================================
+    // SUITE 4: Backend Error Handling & Retry Behavior
+    // =============================================================
+    addHeader('4. Backend Error Handling & Retry Behavior');
+    form.setError('UNREACHABLE_HOST');
+    let errCard = form.container.querySelector('.error-notice-card');
+    assert(!!errCard, 'Error card is rendered in DOM');
+    assert(errCard.querySelector('.error-notice-title').textContent.includes('Unreachable'), 'Unreachable error title displayed');
+    assert(errCard.querySelector('.error-code-badge').textContent === 'ERR_HOST_UNREACHABLE', 'Safe diagnostic code ERR_HOST_UNREACHABLE displayed');
+    assert(form.state.rawUrl === 'https://github.com', 'Entered target URL preserved safely during error');
+    assert(form.state.confirmationInput === 'GITHUB.COM', 'Entered domain confirmation preserved safely during error');
+
+    form.setError('RATE_LIMITED');
+    errCard = form.container.querySelector('.error-notice-card');
+    assert(errCard.querySelector('.error-notice-title').textContent.includes('Rate Limit'), 'Rate limit error title displayed');
+    assert(errCard.querySelector('.error-code-badge').textContent === 'ERR_HTTP_429_THROTTLED', 'Safe diagnostic code ERR_HTTP_429_THROTTLED displayed');
+    assert(errCard.querySelector('.error-notice-body').textContent.includes('Too many security assessment requests'), 'Clear plain-English throttling explanation shown');
+
+    form.setError('SERVER_ERROR');
+    errCard = form.container.querySelector('.error-notice-card');
+    assert(errCard.querySelector('.error-notice-title').textContent.includes('Engine Unavailable'), 'Server error title displayed');
+    assert(errCard.querySelector('.error-code-badge').textContent === 'ERR_INTERNAL_SCAN_FAILURE', 'Safe diagnostic code ERR_INTERNAL_SCAN_FAILURE displayed');
+    assert(!errCard.textContent.includes('node_modules') && !errCard.textContent.includes('stack'), 'No stack traces or sensitive internal paths leaked');
+
+    retriedData = null;
+    const retryBtn = errCard.querySelector('#btn-err-retry');
+    assert(!!retryBtn, 'Retry button rendered in error card');
+    retryBtn.click();
+    assert(retriedData !== null && retriedData.hostname === 'github.com', 'Clicking retry action triggers onRetry with preserved target data');
+
+    form.clearError();
+    assert(form.container.querySelector('#error-notice-mount').style.display === 'none', 'clearError() hides error notice');
+
+    // =============================================================
+    // SUITE 5: API Client Contract & Error Mapping (Step 4)
+    // =============================================================
+    addHeader('5. API Client Configuration & Error Mapping');
+    const client = new window.SiteCheck.ApiClient({ endpointUrl: 'http://localhost:3001/api/scan' });
+    assert(client.getEndpointUrl() === 'http://localhost:3001/api/scan', 'Default endpoint URL matches specification');
+
+    client.setEndpointUrl('https://api.sitecheck.obsidian.dev/scan');
+    assert(client.getEndpointUrl() === 'https://api.sitecheck.obsidian.dev/scan', 'setEndpointUrl correctly updates target endpoint');
+
+    // Test Live vs Mock Banner Distinction
+    const dashContainer = document.getElementById('test-dash-container');
+    const dash = new window.SiteCheck.ResultsDashboard(dashContainer);
+
+    // Mock mode data has isMock = true
+    const mockData = Object.assign({}, window.SiteCheck.MOCK_SCAN_DATA, { isMock: true });
+    dash.setData(mockData);
+    assert(!!dashContainer.querySelector('.demo-data-banner'), 'DEMO DATA banner is visible for mock data');
+
+    // Real live data has isMock = false
+    const realData = Object.assign({}, window.SiteCheck.MOCK_SCAN_DATA, { isMock: false });
+    dash.setData(realData);
+    assert(!dashContainer.querySelector('.demo-data-banner'), 'DEMO DATA banner is hidden when real scan data is provided (isMock: false)');
+
+    // Preserve results dashboard features
+    assert(dashContainer.querySelector('.score-number').textContent === '75', 'Score meter displays 75');
+    assert(dashContainer.querySelectorAll('.rule-card-triggered').length === 6, '6 triggered rules rendered');
+    assert(dashContainer.querySelectorAll('.rule-card-passed').length === 2, '2 passed rules rendered');
+
+    dash.setFramework('nginx');
+    assert(dashContainer.querySelector('#code-SEC-HDR-001').textContent.includes('add_header Content-Security-Policy'), 'Nginx fix snippet dynamically updated');
+
+    // Final Summary
+    const summary = document.createElement('div');
+    summary.className = 'summary';
+    summary.innerHTML = `<h3>Final Results: ${passed} passed, ${failed} failed</h3>`;
+    results.appendChild(summary);
+  </script>
+</body>
+</html>
