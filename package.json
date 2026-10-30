@@ -1,0 +1,13 @@
+{
+  "name": "sitecheck",
+  "version": "1.0.0",
+  "description": "Read-only website security and privacy checker",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}
+
