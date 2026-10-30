@@ -1,8 +1,28 @@
 # SiteCheck Local Development Server
-$port = 8000
+$port = 3001
 $root = $PSScriptRoot
-if (-not $root) { $root = "c:\Users\Lenovo\Downloads" }
+if (-not $root) { $root = (Get-Location).Path }
 
+# Check if Node.js is installed to run full SiteCheck backend & engine
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if ($nodeCmd) {
+    Write-Host "=================================================" -ForegroundColor Cyan
+    Write-Host "  Starting SiteCheck Full-Stack Server (Node.js)  " -ForegroundColor Green
+    Write-Host "  Port: $port                                    " -ForegroundColor Yellow
+    Write-Host "  Directory: $root                               " -ForegroundColor Gray
+    Write-Host "=================================================" -ForegroundColor Cyan
+
+    try {
+        Start-Process "http://localhost:$port/"
+    } catch {}
+
+    # Run Node backend server
+    & node "$root\server\server.js"
+    exit $LASTEXITCODE
+}
+
+# Fallback: Lightweight PowerShell HttpListener on port 8000
+$port = 8000
 # Function to test port availability
 function Test-Port($p) {
     try {

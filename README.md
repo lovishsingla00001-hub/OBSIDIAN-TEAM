@@ -37,3 +37,14 @@ SiteCheck is an accessible, modern, trustworthy cybersecurity analysis dashboard
 ```
 
 ---
+## How to Run
+
+### Option 1: Unified Fullstack Server (Port 3001)
+```powershell
+node server/server.js
+```
+Then navigate to: **[http://localhost:3001](http://localhost:3001)**
+
+### Option 2: Automated Test Suite
+Open `test-runner.html` to execute all 63 unit and integration test assertions.
+
