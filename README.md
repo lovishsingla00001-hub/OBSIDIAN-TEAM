@@ -37,19 +37,3 @@ SiteCheck is an accessible, modern, trustworthy cybersecurity analysis dashboard
 ```
 
 ---
-
-## How to Run
-
-### Option 1: Local Server (Port 3000)
-Run the included PowerShell server:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\serve.ps1
-```
-Then navigate to: **[http://localhost:3000](http://localhost:3000)**
-
-### Option 2: Direct File Load
-Double-click `index.html` to open it in Chrome, Edge, Firefox, or Safari.
-
-### Option 3: Automated Test Suite
-Open `test-runner.html` to execute all 63 unit and integration test assertions.
-# OBSIDIAN
